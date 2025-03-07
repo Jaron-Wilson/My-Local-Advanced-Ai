@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot Interface</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .chat-container {
+            height: 500px;
+            border: 1px solid #ddd;
+            padding: 15px;
+            overflow-y: auto;
+            background-color: white;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        .input-area {
+            display: flex;
+            gap: 10px;
+        }
+        input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .user-message {
+            background-color: #DCF8C6;
+            align-self: flex-end;
+            margin-left: 20%;
+        }
+        .bot-message {
+            background-color: #ECECEC;
+            align-self: flex-start;
+            margin-right: 20%;
+        }
+        .tools-container {
+            margin-top: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .tool-button {
+            background-color: #2196F3;
+        }
+        .image-container {
+            margin-top: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .image-container img {
+            max-width: 200px;
+            max-height: 200px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Chatbot Interface</h1>
+    <div class="chat-container" id="chatContainer"></div>
+    <div class="input-area">
+        <input type="text" id="userInput" placeholder="Type a message...">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+    <div class="tools-container">
+        <button class="tool-button" onclick="generateImage()">Generate Image</button>
+        <button class="tool-button" onclick="getWeather()">Get Weather</button>
+        <button class="tool-button" onclick="listImages()">List Images</button>
+        <button class="tool-button" onclick="listenVoice()">Voice Input</button>
+    </div>
+    <div class="image-container" id="imageContainer"></div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+        
+        // Add conversation history tracking
+        let conversationHistory = [
+            {"role": "system", "content": "You are a helpful assistant with access to various tools."}
+        ];
+        
+        // Replace the sendMessage function
+        async function sendMessage() {
+            const input = document.getElementById('userInput');
+            const message = input.value.trim();
+            if (!message) return;
+            
+            addMessageToChat('You', message, 'user-message');
+            input.value = '';
+            
+            // Add user message to history
+            conversationHistory.push({"role": "user", "content": message});
+            
+            try {
+                const response = await fetch(`${API_URL}/conversation`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(conversationHistory)
+                });
+                
+                const data = await response.json();
+                addMessageToChat('Assistant', data.response, 'bot-message');
+                
+                // Update conversation history
+                conversationHistory = data.messages;
+            } catch (error) {
+                console.error('Error:', error);
+                addMessageToChat('System', 'Error communicating with the server', 'bot-message');
+            }
+        }
+        
+        function addMessageToChat(sender, message, className) {
+            const chatContainer = document.getElementById('chatContainer');
+            const messageElement = document.createElement('div');
+            messageElement.className = `message ${className}`;
+            messageElement.innerHTML = `<strong>${sender}:</strong> ${message}`;
+            chatContainer.appendChild(messageElement);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        
+        // Update generateImage function to display images correctly and integrate with conversation history
+        async function generateImage() {
+            const prompt = prompt('Enter image description:');
+            if (!prompt) return;
+            
+            addMessageToChat('You', `Generate image: ${prompt}`, 'user-message');
+            addMessageToChat('System', 'Generating image...', 'bot-message');
+            
+            // Add to conversation history
+            conversationHistory.push({"role": "user", "content": `Generate an image of: ${prompt}`});
+            
+            try {
+                const response = await fetch(`${API_URL}/generate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt })
+                });
+                
+                const data = await response.json();
+                
+                if (data.images && data.images.length > 0) {
+                    // Process image paths to get just the filename
+                    const imagePaths = data.images.map(path => {
+                        const filename = path.split(/[\/\\]/).pop();
+                        return filename;
+                    });
+                    
+                    // Add image links to the chat
+                    let imageMessage = 'Image generated successfully!<br>';
+                    
+                    // Update image container
+                    const imageContainer = document.getElementById('imageContainer');
+                    imageContainer.innerHTML = '';
+                    
+                    // Display the generated images
+                    for (const imagePath of data.images) {
+                        const filename = imagePath.split(/[\/\\]/).pop();
+                        const fullImagePath = `${API_URL}/image/${imagePath.replace(/\\/g, '/')}`;
+                        
+                        // Create HTML for embedded image
+                        imageMessage += `<div><img src="${fullImagePath}" style="max-width:100%;margin:10px 0;border-radius:5px;"></div>`;
+                        
+                        // Also add to image container below
+                        displayImage(fullImagePath);
+                    }
+                    
+                    addMessageToChat('Assistant', imageMessage, 'bot-message');
+                    
+                    // Add to conversation history
+                    conversationHistory.push({
+                        "role": "assistant", 
+                        "content": `I've generated the image based on your prompt: "${prompt}"`
+                    });
+                    
+                } else if (data.error) {
+                    addMessageToChat('System', `Error: ${data.error}`, 'bot-message');
+                } else {
+                    addMessageToChat('System', 'Failed to generate image', 'bot-message');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                addMessageToChat('System', 'Error generating image', 'bot-message');
+            }
+        }
+        
+        // Update displayImage function to handle full URLs
+        function displayImage(src) {
+            const imageContainer = document.getElementById('imageContainer');
+            const img = document.createElement('img');
+            img.src = src;
+            img.onclick = () => window.open(src, '_blank');
+            imageContainer.appendChild(img);
+        }
+        
+        async function getWeather() {
+            const location = prompt('Enter location:');
+            if (!location) return;
+            
+            addMessageToChat('You', `Get weather for: ${location}`, 'user-message');
+            
+            try {
+                const response = await fetch(`${API_URL}/weather/current`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ location })
+                });
+                
+                const data = await response.json();
+                if (data.weather) {
+                    const weather = data.weather.current;
+                    addMessageToChat('Assistant', `Current weather in ${data.weather.location.name}: ${weather.condition.text}, ${weather.temp_c}°C`, 'bot-message');
+                } else {
+                    addMessageToChat('Assistant', 'Could not get weather information', 'bot-message');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                addMessageToChat('System', 'Error getting weather', 'bot-message');
+            }
+        }
+        
+        async function listImages() {
+            try {
+                const response = await fetch(`${API_URL}/images`);
+                const data = await response.json();
+                
+                if (data.images && data.images.length > 0) {
+                    let message = 'Available images:<br>';
+                    data.images.forEach(img => {
+                        message += `- ${img}<br>`;
+                    });
+                    addMessageToChat('Assistant', message, 'bot-message');
+                    
+                    // Display first few images
+                    const imageContainer = document.getElementById('imageContainer');
+                    imageContainer.innerHTML = '';
+                    
+                    for (let i = 0; i < Math.min(5, data.paths.length); i++) {
+                        const path = data.paths[i];
+                        const filename = path.split(/[\/\\]/).pop();
+                        displayImage(`image/${filename}`);
+                    }
+                } else {
+                    addMessageToChat('Assistant', 'No images found', 'bot-message');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                addMessageToChat('System', 'Error listing images', 'bot-message');
+            }
+        }
+        
+        async function listenVoice() {
+            addMessageToChat('System', 'Listening...', 'bot-message');
+            
+            try {
+                const response = await fetch(`${API_URL}/listen`);
+                const data = await response.json();
+                
+                if (data.text) {
+                    addMessageToChat('You', data.text, 'user-message');
+                    // Send the recognized text to the chatbot
+                    const chatResponse = await fetch(`${API_URL}/chat`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ content: data.text, markdown: true })
+                    });
+                    
+                    const chatData = await chatResponse.json();
+                    addMessageToChat('Assistant', chatData.response, 'bot-message');
+                } else {
+                    addMessageToChat('System', 'Could not recognize speech', 'bot-message');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                addMessageToChat('System', 'Error with voice recognition', 'bot-message');
+            }
+        }
+        
+        // Handle Enter key for sending messages
+        document.getElementById('userInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+        
+        // Initial message
+        window.onload = function() {
+            addMessageToChat('Assistant', 'Hello! How can I help you today?', 'bot-message');
+        };
+    </script>
+</body>
+</html>
