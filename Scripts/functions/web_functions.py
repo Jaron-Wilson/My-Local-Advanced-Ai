@@ -27,7 +27,7 @@ def read_webpage(url):
         # Extract main content (adjust selectors based on common website structures)
         main_content = soup.find('main') or soup.find('article') or soup.find('body')
         
-        if (main_content):
+        if main_content:
             paragraphs = main_content.find_all(['p', 'h1', 'h2', 'h3'])
             content = '\n'.join(p.get_text() for p in paragraphs)
         else:

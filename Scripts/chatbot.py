@@ -34,10 +34,10 @@ MODEL = "qwen2.5-7b-instruct-1m"  # Default model
 
 # Create a mapping of tool names to their corresponding functions
 TOOL_FUNCTION_MAP = {
-    "get_current_time": get_current_time,
-    "get_current_date": get_current_date,
-    "google_search": google_search,
-    "google_image_search": google_image_search,
+    "get_current_time": lambda _: get_current_time(),
+    "get_current_date": lambda _: get_current_date(),
+    "google_search": lambda _: google_search,
+    "google_image_search": lambda _: google_image_search,
     "read_webpage": lambda args: read_webpage(args.get("url")),
     "generate_image": lambda args: generate_image(
         prompt=args.get("prompt"),
@@ -75,15 +75,16 @@ TOOL_FUNCTION_MAP = {
     "what_is_this_image": lambda args: what_is_this_image(args.get("image_path"))
 }
 
+
 def process_stream(stream, add_assistant_label=True):
     """Handle streaming responses from the API"""
     collected_text = ""
     tool_calls = []
     first_chunk = True
-    
+
     for chunk in stream:
         delta = chunk.choices[0].delta
-        
+
         # Handle regular text output
         if delta.content:
             if first_chunk:
@@ -93,17 +94,17 @@ def process_stream(stream, add_assistant_label=True):
                 first_chunk = False
             print(delta.content, end="", flush=True)
             collected_text += delta.content
-            
+
         # Handle tool calls
         elif delta.tool_calls:
             for tc in delta.tool_calls:
                 if len(tool_calls) <= tc.index:
                     tool_calls.append({
-                        "id": "", 
+                        "id": "",
                         "type": "function",
                         "function": {"name": "", "arguments": ""}
                     })
-                    
+
                 tool_calls[tc.index] = {
                     "id": (tool_calls[tc.index]["id"] + (tc.id or "")),
                     "type": "function",
@@ -112,45 +113,62 @@ def process_stream(stream, add_assistant_label=True):
                         "arguments": (tool_calls[tc.index]["function"]["arguments"] + (tc.function.arguments or ""))
                     }
                 }
-                
+
     return collected_text, tool_calls
+
 
 def chat_loop():
     """Main chat loop that handles user input and chatbot responses"""
     messages = [
-        {"role": "system", "content": "You are an advanced AI assistant with access to tools including web search, image generation, and file management. Help users accomplish tasks by utilizing these tools effectively. Be concise but helpful in your responses."}
+        {
+            "role": "system",
+            "content": "You are an advanced AI assistant with access to a specific set of tools defined in `ALL_TOOLS`. You MUST ONLY call tools that are explicitly listed in this definition and do not invent new tools or call other functions. If a user asks for an action that cannot be performed by the available tools, inform them that you cannot fulfill the request."
+        },
+        {
+            "role": "system",
+            "content": "When you call a tool and it returns a response, you MUST always process that response and provide a final answer to the user based on the tool's output. Keep your initial responses short unless you are providing the output of a tool, in which case you can be more detailed. Do not say 'thanks' after a tool call."
+        },
+        {
+            "role": "system",
+            "content": "Never use Google Search to look up file contents. Do not call `generate_image` while analyzing a file; use `analyze_file` for that purpose. If a tool call results in an error, acknowledge that the tool could not complete the request but do not explain the error, provide manual instructions, or suggest alternative solutions."
+        },
+        {
+            "role": "system",
+            "content": "When asked for an example of how to call a tool, demonstrate the format of the tool call as it would appear in the conversation (e.g., '**Calling Tool: tool_name**'). DO NOT actually execute the tool or provide its output when giving an example."
+        }
     ]
     pending_image_query = None
-    
-    print("Assistant: Hi! I am an AI agent empowered with various tools including web browsing and image generation. (Type 'quit' to exit)")
+
+    print(
+        "Assistant: Hi! I am an AI agent empowered with various tools including web browsing and image generation. (Type 'quit' to exit)")
 
     while True:
         user_input = input("\nYou: ").strip()
-        
+
         if user_input.lower() == "quit":
             break
-            
+
         # Handle pending image override confirmation
         if pending_image_query:
             if user_input.lower() in ['yes', 'y']:
                 result = perform_image_search(pending_image_query["query"], override=True)
                 messages.append({
-                    "role": "tool", 
-                    "content": str(result), 
+                    "role": "tool",
+                    "content": str(result),
                     "tool_call_id": pending_image_query["tool_call_id"]
                 })
             elif user_input.lower() in ['no', 'n']:
                 result = perform_image_search(pending_image_query["query"], override=False)
                 messages.append({
-                    "role": "tool", 
-                    "content": str(result), 
+                    "role": "tool",
+                    "content": str(result),
                     "tool_call_id": pending_image_query["tool_call_id"]
                 })
             pending_image_query = None
             continue
-            
+
         messages.append({"role": "user", "content": user_input})
-        
+
         # Get initial response
         response_text, tool_calls = process_stream(
             client.chat.completions.create(
@@ -158,17 +176,17 @@ def chat_loop():
                 messages=messages,
                 tools=ALL_TOOLS,
                 stream=True,
-                temperature=0.2
+                temperature=0.5
             )
         )
-        
+
         if not tool_calls:
             print()
-            
+
         text_in_first_response = len(response_text) > 0
         if text_in_first_response:
             messages.append({"role": "assistant", "content": response_text})
-            
+
         # Handle tool calls if any
         if tool_calls:
             tool_name = tool_calls[0]["function"]["name"]
@@ -176,19 +194,19 @@ def chat_loop():
             if not text_in_first_response:
                 print("Assistant:", end=" ", flush=True)
             print(f"**Calling Tool: {tool_name}**")
-            
+
             messages.append({"role": "assistant", "tool_calls": tool_calls})
-            
+
             # Execute tool calls using the function map instead of if-elif chain
             for tool_call in tool_calls:
                 function_name = tool_call["function"]["name"]
-                
+
                 try:
                     query_args = json.loads(tool_call["function"]["arguments"])
                 except json.JSONDecodeError:
                     print(f"Error: Invalid JSON arguments for {function_name}.")
                     continue
-                
+
                 # Special case for google_image_search that needs confirmation
                 if function_name == "google_image_search":
                     result = google_image_search(query_args.get("query", ""))
@@ -204,14 +222,14 @@ def chat_loop():
                     result = TOOL_FUNCTION_MAP[function_name](query_args)
                 else:
                     result = {"error": f"Unknown tool function: {function_name}"}
-                
+
                 # Add the tool result to the messages
                 messages.append({
-                    "role": "tool", 
-                    "content": str(result), 
+                    "role": "tool",
+                    "content": str(result),
                     "tool_call_id": tool_call["id"]
                 })
-                
+
             # If we didn't have a pending image query, get final response after tool execution
             if not pending_image_query:
                 final_response, _ = process_stream(
@@ -222,10 +240,11 @@ def chat_loop():
                     ),
                     add_assistant_label=False
                 )
-                
+
                 if final_response:
                     print()
                     messages.append({"role": "assistant", "content": final_response})
 
+
 if __name__ == "__main__":
-   chat_loop()
+    chat_loop()
