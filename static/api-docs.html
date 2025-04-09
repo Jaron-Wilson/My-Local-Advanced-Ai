@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot API Documentation</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        .endpoint {
+            background-color: #f9f9f9;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 0 5px 5px 0;
+        }
+        .method {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .get {
+            background-color: #61affe;
+            color: white;
+        }
+        .post {
+            background-color: #49cc90;
+            color: white;
+        }
+        pre {
+            background-color: #f6f8fa;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px 15px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .tool-list {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        .tool-item {
+            background-color: #f9f9f9;
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .tool-name {
+            font-weight: bold;
+            color: #3498db;
+        }
+    </style>
+</head>
+<body>
+    <h1>Chatbot API Documentation</h1>
+    <p>This documentation describes the API endpoints for the AI chatbot with tool capabilities.</p>
+
+    <h2>API Endpoints</h2>
+
+    <div class="endpoint">
+        <span class="method post">POST</span>
+        <strong>/api/chat</strong>
+        <p>Process a chat request and return the response, with optional streaming support.</p>
+        
+        <h3>Request Body</h3>
+        <pre>
+{
+  "messages": [
+    {"role": "user", "content": "What's the weather in London?"}
+  ],
+  "stream": true,
+  "temperature": 0.2
+}</pre>
+
+        <h3>Parameters</h3>
+        <table>
+            <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Required</th>
+                <th>Description</th>
+            </tr>
+            <tr>
+                <td>messages</td>
+                <td>Array</td>
+                <td>Yes</td>
+                <td>Array of message objects in OpenAI format</td>
+            </tr>
+            <tr>
+                <td>stream</td>
+                <td>Boolean</td>
+                <td>No</td>
+                <td>Whether to stream the response (default: true)</td>
+            </tr>
+            <tr>
+                <td>temperature</td>
+                <td>Number</td>
+                <td>No</td>
+                <td>Sampling temperature (default: 0.2)</td>
+            </tr>
+        </table>
+
+        <h3>Response</h3>
+        <p>If streaming is enabled, the response will be a Server-Sent Events stream. Otherwise, it will be a JSON object.</p>
+        <pre>
+// Streaming response format (each event):
+data: {"content": "The weather in London is "}
+data: {"content": "currently cloudy with a temperature of "}
+data: {"tool_calls": [{"index": 0, "id": "call_abc123", "function": {"name": "get_weather", "arguments": "{\"location\": \"London\"}"}}]}
+data: [DONE]
+
+// Non-streaming response format:
+{
+  "response": "I'll check the weather in London for you.",
+  "tool_calls": [
+    {
+      "id": "call_abc123",
+      "type": "function",
+      "function": {
+        "name": "get_weather",
+        "arguments": "{\"location\": \"London\"}"
+      }
+    }
+  ]
+}</pre>
+    </div>
+
+    <div class="endpoint">
+        <span class="method post">POST</span>
+        <strong>/api/tool/execute</strong>
+        <p>Execute a specific tool with the provided arguments.</p>
+        
+        <h3>Request Body</h3>
+        <pre>
+{
+  "tool": "get_weather",
+  "args": {
+    "location": "London"
+  }
+}</pre>
+
+        <h3>Parameters</h3>
+        <table>
+            <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Required</th>
+                <th>Description</th>
+            </tr>
+            <tr>
+                <td>tool</td>
+                <td>String</td>
+                <td>Yes</td>
+                <td>Name of the tool to execute</td>
+            </tr>
+            <tr>
+                <td>args</td>
+                <td>Object</td>
+                <td>Yes</td>
+                <td>Arguments for the tool</td>
+            </tr>
+        </table>
+
+        <h3>Response</h3>
+        <pre>
+{
+  "result": {
+    "temperature": "15°C",
+    "conditions": "Partly cloudy",
+    "humidity": "75%",
+    "wind": "10 mph SW"
+  }
+}</pre>
+    </div>
+
+    <div class="endpoint">
+        <span class="method post">POST</span>
+        <strong>/api/image-search-override</strong>
+        <p>Handle image search override confirmation.</p>
+        
+        <h3>Request Body</h3>
+        <pre>
+{
+  "query": "sunset over mountains",
+  "override": true
+}</pre>
+
+        <h3>Parameters</h3>
+        <table>
+            <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Required</th>
+                <th>Description</th>
+            </tr>
+            <tr>
+                <td>query</td>
+                <td>String</td>
+                <td>Yes</td>
+                <td>Search query for images</td>
+            </tr>
+            <tr>
+                <td>override</td>
+                <td>Boolean</td>
+                <td>Yes</td>
+                <td>Whether to override existing images</td>
+            </tr>
+        </table>
+
+        <h3>Response</h3>
+        <pre>
+{
+  "result": {
+    "images": ["image1.jpg", "image2.jpg"],
+    "message": "Images downloaded successfully"
+  }
+}</pre>
+    </div>
+
+    <h2>Available Tools</h2>
+    <ul class="tool-list">
+        <li class="tool-item">
+            <div class="tool-name">get_current_time</div>
+            <p>Gets the current time.</p>
+            <p><strong>Arguments:</strong> None</p>
+        </li>
+        <li class="tool-item">
+            <div class="tool-name">get_current_date</div>
+            <p>Gets the current date.</p>
+            <p><strong>Arguments:</strong> None</p>
+        </li>
+        <li class="tool-item">
+            <div class="tool-name">google_search</div>
+            <p>Performs a Google search.</p>
+            <p><strong>Arguments:</strong> query (string)</p>
+        </li>
+        <li class="tool-item">
+            <div class="tool-name">google_image_search</div>
+            <p>Searches for images on Google.</p>
+            <p><strong>Arguments:</strong> query (string)</p>
+        </li>
+        <li class="tool-item">
+            <div class="tool-name">read_webpage</div>
+            <p>Reads and extracts content from a webpage.</p>
+            <p><strong>Arguments:</strong> url (string)</p>
+        </li>
+        <li class="tool-item">
+            <div class="tool-name">get_weather</div>
+            <p>Gets current weather for a location.</p>
+            <p><strong>Arguments:</strong> location (string)</p>
+        </li>
+        <li class="tool-item">
+            <div class="tool-name">get_weather_forecast</div>
+            <p>Gets weather forecast for a location.</p>
+            <p><strong>Arguments:</strong> location (string)</p>
+        </li>
+        <li class="tool-item">
+            <div class="tool-name">generate_image</div>
+            <p>Generates an image using AI.</p>
+            <p><strong>Arguments:</strong> prompt (string), negative_prompt (string, optional), steps (int, optional), width (int, optional), height (int, optional)</p>
+        </li>
+        <li class="tool-item">
+            <div class="tool-name">open_saved_image</div>
+            <p>Opens a saved image.</p>
+            <p><strong>Arguments:</strong> filename (string)</p>
+        </li>
+        <li class="tool-item">
+            <div class="tool-name">open_file</div>
+            <p>Opens and reads a file.</p>
+            <p><strong>Arguments:</strong> filepath (string)</p>
+        </li>
+        <li class="tool-item">
+            <div class="tool-name">list_files</div>
+            <p>Lists files in a directory.</p>
+            <p><strong>Arguments:</strong> directory (string)</p>
+        </li>
+        <li class="tool-item">
+            <div class="tool-name">download_file</div>
+            <p>Downloads a file from a URL.</p>
+            <p><strong>Arguments:</strong> url (string), filename (string, optional)</p>
+        </li>
+        <li class="tool-item">
+            <div class="tool-name">move_file</div>
+            <p>Moves a file to a new location.</p>
+            <p><strong>Arguments:</strong> source (string), destination (string)</p>
+        </li>
+        <li class="tool-item">
+            <div class="tool-name">copy_file</div>
+            <p>Copies a file to a new location.</p>
+            <p><strong>Arguments:</strong> source (string), destination (string)</p>
+        </li>
+        <li class="tool-item">
+            <div class="tool-name">delete_file</div>
+            <p>Deletes a file.</p>
+            <p><strong>Arguments:</strong> filepath (string)</p>
+        </li>
+        <li class="tool-item">
+            <div class="tool-name">rename_file</div>
+            <p>Renames a file.</p>
+            <p><strong>Arguments:</strong> old_path (string), new_name (string)</p>
+        </li>
+        <li class="tool-item">
+            <div class="tool-name">analyze_file</div>
+            <p>Analyzes a file and provides information about it.</p>
+            <p><strong>Arguments:</strong> filepath (string)</p>
+        </li>
+        <li class="tool-item">
+            <div class="tool-name">what_is_this_image</div>
+            <p>Analyzes and describes the content of an image.</p>
+            <p><strong>Arguments:</strong> image_path (string)</p>
+        </li>
+    </ul>
+</body>
+</html>
