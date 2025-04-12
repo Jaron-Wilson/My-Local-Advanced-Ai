@@ -47,9 +47,13 @@ WHAT_IS_THIS_IMAGE_TOOL = {
         "parameters": {
             "type": "object",
             "properties": {
-                "image_path": {"type": "string", "description": "Path to the image file to analyze"}
+                "image_path": {"type": "string", "description": "Path to the image file to analyze"},
+                "local": {
+                    "type": "boolean",
+                    "description": "Indicates if the image is local or api use"
+                }
             },
-            "required": ["image_path"]
+            "required": ["image_path", "local"]  # List of required parameters
         }
     }
 }

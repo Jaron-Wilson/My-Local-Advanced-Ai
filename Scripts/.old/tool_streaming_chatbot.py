@@ -17,7 +17,6 @@ import base64  # For base64 encoding/decoding of images
 import glob  # For pattern matching in file listing
 from dotenv import load_dotenv
 load_dotenv()
-import base64
 
 # Create directories for images
 IMAGE_DIR = "./images"
@@ -291,22 +290,6 @@ ANALYZE_FILE_TOOL = {
                 "file_path": {"type": "string", "description": "Path to the file to analyze"}
             },
             "required": ["file_path"]
-        }
-    }
-}
-
-# Tool for analyzing images
-WHAT_IS_THIS_IMAGE_TOOL = {
-    "type": "function",
-    "function": {
-        "name": "what_is_this_image",
-        "description": "Analyze an image and provide a description of its content",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "image_path": {"type": "string", "description": "Path to the image file to analyze"}
-            },
-            "required": ["image_path"]
         }
     }
 }
@@ -724,41 +707,6 @@ def analyze_file(file_path):
     except Exception as e:
         return {"status": "error", "message": f"Failed to analyze file: {str(e)}"}
 
-def what_is_this_image(image_path): # for now we call using the api requests, as the python package does not work yet.
-    """Analyze an image using qwen2-vl-2b-instruct model. DOES NOT WORK WITH QWEN"""
-    try:
-        with open(image_path, "rb") as image_file:
-            base64_image = base64.b64encode(image_file.read()).decode("utf-8")
-    except IOError:
-        print("Couldn't read the image. Make sure the path is correct and the file exists.")
-        exit()
-
-    completion = client.chat.completions.create(
-    model="gemma-3-4b-it",
-    messages=[
-        {
-        "role": "system",
-        "content": "You are an AI assistant that analyzes images.",
-        },
-        {
-        "role": "user",
-        "content": [
-            {"type": "text", "text": "What's in this image?"},
-            {
-            "type": "image_url",
-            "image_url": {
-                "url": f"data:image/jpeg;base64,{base64_image}"
-            },
-            },
-        ],
-        }
-    ],
-    max_tokens=1000,
-    stream=False
-    )
-    #return to the main model so it can give more detail about it
-    return completion.choices[0].message.content
-
 def process_stream(stream, add_assistant_label=True):
     """Handle streaming responses from the API"""
     collected_text = ""
@@ -804,8 +752,7 @@ def chat_loop():
     pending_image_query = None
     
     print("Assistant: Hi! I am an AI agent empowered with various tools including web browsing. (Type 'quit' to exit)")
-
-
+    
     while True:
         user_input = input("\nYou: ").strip()
         
@@ -841,7 +788,7 @@ def chat_loop():
                 tools=[TIME_TOOL, DATE_TOOL, GOOGLE_SEARCH_TOOL, GOOGLE_IMAGE_TOOL, WEBPAGE_READ_TOOL,
                        GET_WEATHER_TOOL, GET_WEATHER_FORECAST_TOOL, 
                        TEXT_TO_IMAGE_TOOL, OPEN_IMAGE_TOOL, OPEN_FILE_TOOL, LIST_FILES_TOOL, DOWNLOAD_FILE_TOOL,
-                       MOVE_FILE_TOOL, COPY_FILE_TOOL, DELETE_FILE_TOOL, RENAME_FILE_TOOL, ANALYZE_FILE_TOOL, WHAT_IS_THIS_IMAGE_TOOL],
+                       MOVE_FILE_TOOL, COPY_FILE_TOOL, DELETE_FILE_TOOL, RENAME_FILE_TOOL, ANALYZE_FILE_TOOL],
                 stream=True,
                 temperature=0.2
             )
@@ -935,8 +882,7 @@ def chat_loop():
                     )
                 elif tool_call["function"]["name"] == "analyze_file":
                     result = analyze_file(query_args["file_path"])
-                elif tool_call["function"]["name"] == "what_is_this_image":
-                    result = what_is_this_image(query_args["image_path"])
+                
                 messages.append({
                     "role": "tool", 
                     "content": str(result), 
@@ -959,4 +905,4 @@ def chat_loop():
                     messages.append({"role": "assistant", "content": final_response})
 
 if __name__ == "__main__":
-   chat_loop()
+    chat_loop()

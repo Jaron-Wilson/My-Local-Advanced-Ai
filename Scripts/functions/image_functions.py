@@ -9,6 +9,8 @@ import base64
 import requests
 # Change from relative import to absolute import
 from tools.config import GENERATED_DIR, DOWNLOADED_DIR, IMAGE_DIR
+import lmstudio as lms
+from lmstudio._sdk_models import ChatMessagePartFileData, ChatMessagePartTextData, ChatMessageDataUser
 
 def generate_image(prompt, negative_prompt="", steps=20, width=512, height=512):
     """Generate an image using Stable Diffusion API running locally on port 7860"""
@@ -109,9 +111,9 @@ def open_saved_image(filename):
     except Exception as e:
         return {"error": f"Failed to open image: {str(e)}"}
 
-def what_is_this_image(image_path):
+def what_is_this_image(image_path, local):
     """Analyze an image using an LLM with vision capabilities"""
-    try:
+    if not local:
         from openai import OpenAI
         
         # Initialize client with the local endpoint
@@ -146,5 +148,13 @@ def what_is_this_image(image_path):
         
         return completion.choices[0].message.content
         
-    except Exception as e:
-        return {"error": f"Failed to analyze image: {str(e)}"}
+    if local:
+        # Handle local image analysis with LM Studio
+        image_handle = lms.prepare_image(image_path)
+        image_data = ChatMessagePartFileData(name=image_path.split('/')[-1], identifier='unique_identifier', size_bytes=os.path.getsize(image_path), file_type='image')
+        llm = lms.llm("qwen2-vl-2b-instruct")
+        chat = lms.Chat()
+        chat.add_user_message("Describe this image please", images=[image_handle])
+        ChatMessageDataUser(content=[ChatMessagePartTextData(text='Describe this image please'), image_data])
+        prediction = llm.respond(chat)
+        return prediction

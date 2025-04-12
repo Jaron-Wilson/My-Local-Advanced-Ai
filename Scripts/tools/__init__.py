@@ -5,7 +5,7 @@ Tools are defined as JSON structures that can be attached to the chatbot.
 
 # Import all tools from the respective modules
 from .time_tools import TIME_TOOL, DATE_TOOL
-from .search_tools import GOOGLE_SEARCH_TOOL, GOOGLE_IMAGE_TOOL
+from .search_tools import GOOGLE_SEARCH_TOOL, GOOGLE_IMAGE_TOOL, PERFORM_IMAGE_SEARCH
 from .web_tools import WEBPAGE_READ_TOOL
 from .image_tools import TEXT_TO_IMAGE_TOOL, OPEN_IMAGE_TOOL, WHAT_IS_THIS_IMAGE_TOOL
 from .file_tools import (OPEN_FILE_TOOL, LIST_FILES_TOOL, DOWNLOAD_FILE_TOOL,
@@ -22,6 +22,7 @@ ALL_TOOLS = [
     # Search tools
     GOOGLE_SEARCH_TOOL,
     GOOGLE_IMAGE_TOOL,
+    PERFORM_IMAGE_SEARCH,
 
     # Web tools
     WEBPAGE_READ_TOOL,

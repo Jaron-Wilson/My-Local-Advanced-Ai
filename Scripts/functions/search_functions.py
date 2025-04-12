@@ -28,11 +28,11 @@ def handle_image_files(query, override=False):
     
     return f"{base_path}_{suffix}"
 
-def google_search(query):
+def google_search(query, max_results=3):
     """Perform a Google search and return top results"""
     try:
-        # Use a shorter pause time and limit results to 3 to avoid timeouts
-        results = list(search(query, num=3, pause=2.0, stop=3))
+        # Use a shorter pause time and limit results to max_results to avoid timeouts
+        results = list(search(query, num=max_results, pause=2.0, stop=max_results))
         return {"results": results}
     except Exception as e:
         return {"error": f"Search failed: {str(e)}", "results": []}

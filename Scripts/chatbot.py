@@ -36,9 +36,17 @@ MODEL = "qwen2.5-7b-instruct-1m"  # Default model
 TOOL_FUNCTION_MAP = {
     "get_current_time": lambda _: get_current_time(),
     "get_current_date": lambda _: get_current_date(),
-    "google_search": lambda _: google_search,
-    "google_image_search": lambda _: google_image_search,
-    "read_webpage": lambda args: read_webpage(args.get("url")),
+    "google_search": lambda args: google_search(
+        args.get("query"), 
+        args.get("max_results")),
+    "perform_image_search": lambda args: perform_image_search(
+        query=args.get("query"),
+        override=args.get("override")
+    ),
+    "google_image_search": lambda args: google_image_search(args.get("query")),
+    "read_webpage": lambda args: read_webpage(
+        url=args.get("url")
+    ),
     "generate_image": lambda args: generate_image(
         prompt=args.get("prompt"),
         negative_prompt=args.get("negative_prompt", ""),
@@ -72,7 +80,9 @@ TOOL_FUNCTION_MAP = {
         new_name=args.get("new_name")
     ),
     "analyze_file": lambda args: analyze_file(args.get("file_path")),
-    "what_is_this_image": lambda args: what_is_this_image(args.get("image_path"))
+    "what_is_this_image": lambda args: what_is_this_image(
+        image_path=args.get("image_path"),
+        local=args.get("local")),
 }
 
 
