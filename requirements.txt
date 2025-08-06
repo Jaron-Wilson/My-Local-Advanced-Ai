@@ -29,9 +29,6 @@ icrawler
 Pillow
 PyPDF2
 youtube_transcript_api
-gTTS
-SpeechRecognition
-pyaudio  # Note: May need manual installation on Windows
 
 # General utilities
 python-dateutil

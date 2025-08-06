@@ -21,21 +21,14 @@ ai_assistant/               # Main package
 ├── config.py              # Configuration loading
 ├── core/                  # Core components
 │   ├── __init__.py
-│   ├── chat_engine.py     # Main chat loop implementation
-│   └── model_manager.py   # Model management
-├── tools/                 # Tool implementations
-│   ├── __init__.py
-│   ├── file_tools.py      # File operations tools
-│   ├── image_tools.py     # Image search and manipulation
-│   ├── sdk_tools.py       # LM Studio SDK integration
-│   ├── system_tools.py    # System information tools
-│   ├── tool_processor.py  # Tool execution processor
-│   ├── tool_registry.py   # Tool registration and management
-│   └── web_tools.py       # Web search and content tools
-└── utils/                 # Utility functions
+│   └── chat_engine.py     # Main chat loop implementation
+└── tools/                 # Tool implementations
     ├── __init__.py
-    ├── logging_utils.py   # Logging configuration
-    └── sdk_utils.py       # SDK helper functions
+    ├── file_tools.py      # File operations tools
+    ├── image_tools.py     # Image generation and opening
+    ├── system_tools.py    # System information tools
+    ├── tool_registry.py   # Tool registration and management
+    └── web_tools.py       # Web search and content tools
 ```
 
 ## Installation
@@ -47,65 +40,97 @@ ai_assistant/               # Main package
 pip install -r requirements.txt
 ```
 
-3. Make sure LM Studio is running (with API server enabled)
+3. Make sure LM Studio is running (with the API server enabled).
+4. If you want to use the weather tools, get a free API key from [WeatherAPI](https://www.weatherapi.com/) and set it as an environment variable named `WEATHER_API_KEY`. You can do this by creating a `.env` file in the root of the project with the following content:
+   ```
+   WEATHER_API_KEY=your_api_key
+   ```
 
 ## Usage
 
 Run the main script to start the assistant:
 
 ```bash
-python Scripts/tool_streaming_chatbot.py
+python run.py
 ```
-
-### Command Line Options
-
-- `--model`, `-m`: Specify a model to use
-- `--tools-file`, `-t`: Path to YAML file with additional tool definitions
-- `--single-tool-mode`, `-s`: Run in single tool call mode (disables multiple tool calls)
 
 ## Available Tools
 
 ### System Tools
-- Get system information
 - Get current time
-- Check internet connection
-
-### File Tools
-- Search files
-- Read files
-- Write files 
-- List directories
-- Get file information
-
-### Image Tools
-- Search for images
-- Download images
-- List local images
+- Get current date
+- Get system information (CPU and memory usage)
 
 ### Web Tools
-- Search the web
-- Get weather information
-- Fetch webpage content
+- Google search
+- Google image search
+- Read webpage content
+- Download a file from a URL
 
-### SDK Tools
-- List available models
-- Select specialized models
-- Load/unload models
+### File Tools
+- Open a file
+- List files in a directory
+- Move a file
+- Copy a file
+- Delete a file
+- Rename a file
+- Analyze file content
+
+### Image Tools
+- Generate an image from a text prompt (using Stable Diffusion)
+- Open a saved image
+
+### Weather Tools
+- Get current weather for a location
+- Get a 3-day weather forecast
 
 ## Extending with New Tools
 
-You can extend the assistant with new tools by:
+The tool registry automatically discovers and loads tools from the `.py` files in the `ai_assistant/tools` directory. To add a new tool:
 
-1. Creating a new tool provider class
-2. Implementing the required methods:
-   - `get_api_tools()`: Schema for OpenAI API compatibility
-   - `get_sdk_tools()`: Functions for LM Studio SDK
-   - `execute_tool()`: Main implementation
-3. Registering the tool provider in the `ToolRegistry`
+1.  **Create or choose a tool file:** You can add your tool to an existing file (e.g., `system_tools.py`) or create a new file (e.g., `my_new_tools.py`).
+2.  **Define the tool:** Create a dictionary that describes the tool, following the OpenAI function calling format.
+3.  **Implement the tool function:** Write the Python function that will be executed when the tool is called.
+4.  **Export the tool:** Add your tool definition and function to the `tools` list and `tool_functions` dictionary in the tool file.
+
+For example, to add a `get_username` tool to `system_tools.py`, you would add the following:
+
+```python
+# In ai_assistant/tools/system_tools.py
+
+# ... other imports
+import getpass
+
+# ... other tool definitions
+
+GET_USERNAME_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "get_username",
+        "description": "Get the current user's username.",
+        "parameters": {"type": "object", "properties": {}}
+    }
+}
+
+# ... other tool functions
+
+def get_username():
+    return {"username": getpass.getuser()}
+
+# ... update exports
+
+tools = [TIME_TOOL, DATE_TOOL, SYSTEM_INFO_TOOL, GET_USERNAME_TOOL]
+tool_functions = {
+    "get_current_time": get_current_time,
+    "get_current_date": get_current_date,
+    "get_system_info": get_system_info,
+    "get_username": get_username,
+}
+```
 
 ## Configuration
 
-Configuration is loaded from environment variables and defaults in `config.py`.
+Configuration is loaded from environment variables and defaults in `ai_assistant/config.py`. You can create a `.env` file in the project root to override the default settings.
 
 ## License
 
